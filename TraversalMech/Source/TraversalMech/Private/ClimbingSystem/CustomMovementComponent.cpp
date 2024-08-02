@@ -193,7 +193,11 @@ void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
 	TraceClimbableSurfaces();
 	ProcessClimbableSurfaceInfo();
 
-	//check if we should start climbiung 
+	//check if we should start climbiung
+	if(CheckShouldStopClimbing())
+	{
+		StopClimbing();
+	}
 	RestorePreAdditiveRootMotionVelocity();
 
 	if( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() )
@@ -246,6 +250,19 @@ void UCustomMovementComponent::ProcessClimbableSurfaceInfo()
 	
 }
 
+bool UCustomMovementComponent::CheckShouldStopClimbing()
+{
+	if(ClimbableSurfacesTracedResults.IsEmpty()) return true;
+
+	const float DotResult = FVector::DotProduct(CurrentClimbableSurfaceNormal, FVector::UpVector);
+	const float DegreeDiff = FMath::RadiansToDegrees(FMath::Acos(DotResult));
+
+	if(DegreeDiff <= 60.f)
+		return true;
+	
+	return false;
+}
+
 FQuat UCustomMovementComponent::GetClimbRotation(float DeltaTime)
 {
 	 const FQuat CurrentQuat = UpdatedComponent->GetComponentQuat();
@@ -272,6 +289,7 @@ void UCustomMovementComponent::SnapMovementToClimbableSurfaces(float deltaTime)
 
 	UpdatedComponent->MoveComponent(SnapVector*deltaTime*MaxClimbSpeed,UpdatedComponent->GetComponentQuat(),true);
 }
+
 
 
 void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
