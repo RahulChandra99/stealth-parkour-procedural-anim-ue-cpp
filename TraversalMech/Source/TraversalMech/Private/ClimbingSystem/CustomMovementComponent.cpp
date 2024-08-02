@@ -2,76 +2,146 @@
 
 
 #include "ClimbingSystem/CustomMovementComponent.h"
+
+#include "Components/CapsuleComponent.h"
 #include "TraversalMech/TraversalMechCharacter.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "TraversalMech/DebugHelper.h"
 
-TArray<FHitResult> UCustomMovementComponent::DoCapsuleTraceMultiByObject(const FVector& Start, const FVector& End,
-                                                                         bool bShowDebugShape, bool bDrawPersistantShapes)
+void UCustomMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
+	FActorComponentTickFunction* ThisTickFunction)
 {
-	TArray<FHitResult> OutCapsuleTraceHitResults;
-	EDrawDebugTrace::Type DebugTraceType = EDrawDebugTrace::None;
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
 
-	if(bShowDebugShape)
+void UCustomMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
+{
+
+	if(IsClimbing())
 	{
-		DebugTraceType = EDrawDebugTrace::ForOneFrame;
-		if(bDrawPersistantShapes)
-		{
-			DebugTraceType = EDrawDebugTrace::Persistent;
-		}
+		bOrientRotationToMovement = false;
+		CharacterOwner->GetCapsuleComponent()->SetCapsuleHalfHeight(48.f);
 	}
-	UKismetSystemLibrary::CapsuleTraceMultiForObjects(
-		this,
-		Start,
-		End,
-		ClimbCapsuleTraceRadius,
-		ClimbCapsuleTraceHalfHeight,
-		ClimbableSurfaceTraceTypes,
-		false,
-		TArray<AActor*>(),
-		DebugTraceType,
-		OutCapsuleTraceHitResults,
-		false
-	);
 
-	return OutCapsuleTraceHitResults;
+	if(PreviousMovementMode == MOVE_Custom && PreviousCustomMode == ECustomMovementMode::Move_Climb)
+	{
+		bOrientRotationToMovement = true;
+		CharacterOwner->GetCapsuleComponent()->SetCapsuleHalfHeight(96.f);
+
+		StopMovementImmediately();
+
+		Super::OnMovementModeChanged(PreviousMovementMode, PreviousCustomMode);
+	}
+}
+
+void UCustomMovementComponent::PhysCustom(float deltaTime, int32 Iterations)
+{
+	Super::PhysCustom(deltaTime, Iterations);
+
+	if(IsClimbing())
+	{
+		PhysClimb(deltaTime,Iterations);
+	}
+}
+
+float UCustomMovementComponent::GetMaxSpeed() const
+{
+	if(IsClimbing())
+	{
+		return MaxClimbSpeed;
+	}
+	else
+	{
+		return Super::GetMaxSpeed();
+	}
+	
 	
 }
 
-FHitResult UCustomMovementComponent::DoLineTraceSingleByObject(const FVector& Start, const FVector& End,
-	bool bShowDebugShape, bool bDrawPersistantShapes )
+float UCustomMovementComponent::GetMaxAcceleration() const
 {
-	FHitResult OutHit;
-	EDrawDebugTrace::Type DebugTraceType = EDrawDebugTrace::None;
-
-	if(bShowDebugShape)
+	if(IsClimbing())
 	{
-		DebugTraceType = EDrawDebugTrace::ForOneFrame;
-		if(bDrawPersistantShapes)
-		{
-			DebugTraceType = EDrawDebugTrace::Persistent;
-		}
+		return MaxClimbAcceleration;
 	}
-	UKismetSystemLibrary::LineTraceSingleForObjects(
-		this,
-		Start,
-		End,
-		ClimbableSurfaceTraceTypes,
-		false,
-		TArray<AActor*>(),
-		DebugTraceType,
-		OutHit,
-		false
-	);
-	return OutHit;
+	else
+	{
+		return Super::GetMaxAcceleration();
+
+	}
 }
+
+#pragma region ClimbTraces
+
+	TArray<FHitResult> UCustomMovementComponent::DoCapsuleTraceMultiByObject(const FVector& Start, const FVector& End,
+																			 bool bShowDebugShape, bool bDrawPersistantShapes)
+	{
+		TArray<FHitResult> OutCapsuleTraceHitResults;
+		EDrawDebugTrace::Type DebugTraceType = EDrawDebugTrace::None;
+
+		if(bShowDebugShape)
+		{
+			DebugTraceType = EDrawDebugTrace::ForOneFrame;
+			if(bDrawPersistantShapes)
+			{
+				DebugTraceType = EDrawDebugTrace::Persistent;
+			}
+		}
+		UKismetSystemLibrary::CapsuleTraceMultiForObjects(
+			this,
+			Start,
+			End,
+			ClimbCapsuleTraceRadius,
+			ClimbCapsuleTraceHalfHeight,
+			ClimbableSurfaceTraceTypes,
+			false,
+			TArray<AActor*>(),
+			DebugTraceType,
+			OutCapsuleTraceHitResults,
+			false
+		);
+
+		return OutCapsuleTraceHitResults;
+		
+	}
+
+	FHitResult UCustomMovementComponent::DoLineTraceSingleByObject(const FVector& Start, const FVector& End,
+		bool bShowDebugShape, bool bDrawPersistantShapes )
+	{
+		FHitResult OutHit;
+		EDrawDebugTrace::Type DebugTraceType = EDrawDebugTrace::None;
+
+		if(bShowDebugShape)
+		{
+			DebugTraceType = EDrawDebugTrace::ForOneFrame;
+			if(bDrawPersistantShapes)
+			{
+				DebugTraceType = EDrawDebugTrace::Persistent;
+			}
+		}
+		UKismetSystemLibrary::LineTraceSingleForObjects(
+			this,
+			Start,
+			End,
+			ClimbableSurfaceTraceTypes,
+			false,
+			TArray<AActor*>(),
+			DebugTraceType,
+			OutHit,
+			false
+		);
+		return OutHit;
+	}
+#pragma endregion
+
+#pragma region ClimbCore
 
 bool UCustomMovementComponent::TraceClimbableSurfaces()
 {
 	const FVector StartOffset = UpdatedComponent->GetForwardVector() * 30.f;
 	const FVector Start = UpdatedComponent->GetComponentLocation() + StartOffset;
 	const FVector End = Start + UpdatedComponent->GetForwardVector();
-	ClimbableSurfacesTracedResults = DoCapsuleTraceMultiByObject(Start,End,true,true);
+	ClimbableSurfacesTracedResults = DoCapsuleTraceMultiByObject(Start,End,true);
 
 	return !ClimbableSurfacesTracedResults.IsEmpty();
 }
@@ -83,9 +153,8 @@ FHitResult UCustomMovementComponent::TraceFromEyeHeight(float TraceDistance, flo
 	const FVector Start = ComponentLocation + EyeHeightOffset;
 	const FVector End = Start + UpdatedComponent->GetForwardVector() * TraceDistance;
 
-	return DoLineTraceSingleByObject(Start,End,true,true);
+	return DoLineTraceSingleByObject(Start,End);
 }
-
 
 
 bool UCustomMovementComponent::CanStartClimbing()
@@ -97,6 +166,108 @@ bool UCustomMovementComponent::CanStartClimbing()
 	return true;
 }
 
+void UCustomMovementComponent::StartClimbing()
+{
+	SetMovementMode(MOVE_Custom,ECustomMovementMode::Move_Climb);
+}
+
+void UCustomMovementComponent::StopClimbing()
+{
+	SetMovementMode(MOVE_Falling);
+}
+
+void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
+{
+	if (deltaTime < MIN_TICK_TIME)
+	{
+		return;
+	}
+
+	//Process all the climbable surfaces info
+	TraceClimbableSurfaces();
+	ProcessClimbableSurfaceInfo();
+
+	//check if we should start climbiung 
+	RestorePreAdditiveRootMotionVelocity();
+
+	if( !HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() )
+	{
+		//define the max climb speed and acceleration
+		CalcVelocity(deltaTime, 0.f, true, MaxBreakClimbDeceleration);
+	}
+
+	ApplyRootMotionToVelocity(deltaTime);
+	
+
+	FVector OldLocation = UpdatedComponent->GetComponentLocation();
+	const FVector Adjusted = Velocity * deltaTime;
+	FHitResult Hit(1.f);
+
+	//handle climb rotation
+	SafeMoveUpdatedComponent(Adjusted, GetClimbRotation(deltaTime), true, Hit);
+
+	if (Hit.Time < 1.f)
+	{
+		//adjust and try again
+		HandleImpact(Hit, deltaTime, Adjusted);
+		SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
+	}
+
+	if( HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() )
+	{
+		Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / deltaTime;
+	}
+
+	//snap movement to climbable surfaces
+	SnapMovementToClimbableSurfaces(deltaTime);
+}
+
+void UCustomMovementComponent::ProcessClimbableSurfaceInfo()
+{
+	CurrentClimbableSurfaceLocation = FVector::ZeroVector;
+	CurrentClimbableSurfaceNormal = FVector::ZeroVector;
+
+	if(ClimbableSurfacesTracedResults.IsEmpty()) return;
+
+	for(const FHitResult& TracedHitResult:ClimbableSurfacesTracedResults)
+	{
+		CurrentClimbableSurfaceLocation += TracedHitResult.ImpactPoint;
+		CurrentClimbableSurfaceNormal += TracedHitResult.ImpactNormal;
+	}
+	
+	CurrentClimbableSurfaceLocation /= ClimbableSurfacesTracedResults.Num();
+	CurrentClimbableSurfaceNormal = CurrentClimbableSurfaceNormal.GetSafeNormal();
+	
+}
+
+FQuat UCustomMovementComponent::GetClimbRotation(float DeltaTime)
+{
+	 const FQuat CurrentQuat = UpdatedComponent->GetComponentQuat();
+
+	if(HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocity())
+	{
+		return CurrentQuat;
+	}
+
+	const FQuat TargetQuat = FRotationMatrix::MakeFromX(-CurrentClimbableSurfaceNormal).ToQuat();
+	return FMath::QInterpTo(CurrentQuat, TargetQuat, DeltaTime, 5.f);
+	
+}
+
+void UCustomMovementComponent::SnapMovementToClimbableSurfaces(float deltaTime)
+{
+	const FVector ComponentForward = UpdatedComponent->GetForwardVector();
+	const FVector ComponentLocation = UpdatedComponent->GetComponentLocation();
+
+	const FVector ProjectedCharacterToSurface =
+		(CurrentClimbableSurfaceLocation-ComponentLocation).ProjectOnTo(ComponentForward);
+
+	const FVector SnapVector = -CurrentClimbableSurfaceNormal * ProjectedCharacterToSurface.Length();
+
+	UpdatedComponent->MoveComponent(SnapVector*deltaTime*MaxClimbSpeed,UpdatedComponent->GetComponentQuat(),true);
+}
+
+
 void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 {
 	if(bEnableClimb)
@@ -104,6 +275,7 @@ void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 		if(CanStartClimbing())
 		{
 			Debug::Print(TEXT("Can Start Climbing"));
+			StartClimbing();
 		}
 		else
 		{
@@ -112,7 +284,7 @@ void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 	}
 	else
 	{
-		//stop clinbing
+		StopClimbing();
 	}
 }
 
@@ -122,3 +294,4 @@ bool UCustomMovementComponent::IsClimbing() const
 }
 
 
+#pragma endregion 

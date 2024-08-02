@@ -34,16 +34,26 @@ private:
 
 #pragma region ClimbCore
 
-bool TraceClimbableSurfaces();
-FHitResult TraceFromEyeHeight(float TraceDistance, float TraceStartOffset = 0.f);
-bool CanStartClimbing();
+	bool TraceClimbableSurfaces();
+	FHitResult TraceFromEyeHeight(float TraceDistance, float TraceStartOffset = 0.f);
+	bool CanStartClimbing();
+	void StartClimbing();
+	void StopClimbing();
+	void PhysClimb(float deltaTime, int32 Iterations);
+	void ProcessClimbableSurfaceInfo();
+	FQuat GetClimbRotation(float DeltaTime);
+	void SnapMovementToClimbableSurfaces(float deltaTime);
 
-TArray<FHitResult> ClimbableSurfacesTracedResults;
+	
 	
 #pragma endregion 
 	
 #pragma region ClimbVariables
 
+	TArray<FHitResult> ClimbableSurfacesTracedResults;
+	FVector CurrentClimbableSurfaceLocation;
+	FVector CurrentClimbableSurfaceNormal;
+	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
 	TArray<TEnumAsByte<EObjectTypeQuery> > ClimbableSurfaceTraceTypes;
 	
@@ -52,8 +62,27 @@ TArray<FHitResult> ClimbableSurfacesTracedResults;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
 	float ClimbCapsuleTraceHalfHeight = 72.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	float MaxBreakClimbDeceleration = 400.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	float MaxClimbSpeed = 100.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	float MaxClimbAcceleration = 300.f;
 	
 #pragma endregion
+
+#pragma region OverridenMethods
+	protected:
+		virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+		virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
+		virtual void PhysCustom(float deltaTime, int32 Iterations) override;
+		virtual float GetMaxSpeed() const override;
+		virtual float GetMaxAcceleration() const override;
+#pragma endregion 
+	
 
 public:
 
