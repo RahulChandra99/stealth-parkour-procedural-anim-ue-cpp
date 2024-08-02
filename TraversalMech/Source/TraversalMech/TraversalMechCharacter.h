@@ -59,6 +59,10 @@ private:
 	/** Called for climbing input */
 	void OnClimbActionStarted(const FInputActionValue& Value);
 
+	void HandleGroundMovementInput(const FInputActionValue& Value);
+	void HandleClimbMovementInput(const FInputActionValue& Value);
+	
+
 
 protected:
 

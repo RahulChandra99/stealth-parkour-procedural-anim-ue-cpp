@@ -101,25 +101,16 @@ void ATraversalMechCharacter::SetupPlayerInputComponent(class UInputComponent* P
 
 void ATraversalMechCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	if (Controller != nullptr)
+	if(!CustomMovementComponent) return;
+	if(CustomMovementComponent->IsClimbing())
 	{
-		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	
-		// get right vector 
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		HandleClimbMovementInput(Value);
 	}
+	else
+	{
+		HandleGroundMovementInput(Value);
+	}
+	
 }
 
 void ATraversalMechCharacter::Look(const FInputActionValue& Value)
@@ -147,6 +138,51 @@ void ATraversalMechCharacter::OnClimbActionStarted(const FInputActionValue& Valu
 	{
 		CustomMovementComponent->ToggleClimbing(false);
 	}
+}
+
+void ATraversalMechCharacter::HandleGroundMovementInput(const FInputActionValue& Value)
+{
+	// input is a Vector2D
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	if (Controller != nullptr)
+	{
+		// find out which way is forward
+		const FRotator Rotation = Controller->GetControlRotation();
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+		// get forward vector
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	
+		// get right vector 
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		// add movement 
+		AddMovementInput(ForwardDirection, MovementVector.Y);
+		AddMovementInput(RightDirection, MovementVector.X);
+	}
+}
+
+void ATraversalMechCharacter::HandleClimbMovementInput(const FInputActionValue& Value)
+{
+	// input is a Vector2D
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+
+	// get right vector
+	const FVector ForwardDirection = FVector::CrossProduct(
+		-CustomMovementComponent->GetClimbableSurfaceNormal(),
+		GetActorRightVector()
+	);
+
+	// get forward vector 
+	const FVector RightDirection = FVector::CrossProduct(
+	-CustomMovementComponent->GetClimbableSurfaceNormal(),
+	-GetActorUpVector()
+		);
+
+	// add movement 
+	AddMovementInput(ForwardDirection, MovementVector.Y);
+	AddMovementInput(RightDirection, MovementVector.X);
 }
 
 
