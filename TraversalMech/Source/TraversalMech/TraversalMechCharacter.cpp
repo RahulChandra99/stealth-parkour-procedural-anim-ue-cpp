@@ -42,25 +42,22 @@ ATraversalMechCharacter::ATraversalMechCharacter(const FObjectInitializer& Objec
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-
-	// Create a follow camera
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
-
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	DTPCameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("DefaultThirdPersonCameraBoom"));
+	DTPCameraBoom->SetupAttachment(RootComponent);
+	DTPCameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
+	DTPCameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	DTPFollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("DefaultThirdPersonCamera"));
+	DTPFollowCamera->SetupAttachment(DTPCameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
+	DTPFollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	
 }
 
 void ATraversalMechCharacter::BeginPlay()
 {
 	// Call the base class  
 	Super::BeginPlay();
-
+	
+	
 	//Add Input Mapping Context
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
