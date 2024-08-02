@@ -17,8 +17,10 @@ class ATraversalMechCharacter : public ACharacter
 public:
 	ATraversalMechCharacter(const FObjectInitializer& ObjectInitializer);
 
-private:
+	UPROPERTY(BlueprintReadWrite, VisibleAnywhere)
+	bool bCanPickTorch;
 
+private:
 	
 	
 	/** Default TP Camera */
@@ -26,7 +28,6 @@ private:
 	class USpringArmComponent* DTPCameraBoom;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* DTPFollowCamera;
-
 	
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Movement, meta = (AllowPrivateAccess = "true"))
