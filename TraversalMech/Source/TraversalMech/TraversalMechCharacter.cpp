@@ -88,6 +88,9 @@ void ATraversalMechCharacter::SetupPlayerInputComponent(class UInputComponent* P
 
 		//Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ATraversalMechCharacter::Move);
+		
+		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Started, this, &ATraversalMechCharacter::Run);
+		EnhancedInputComponent->BindAction(RunAction, ETriggerEvent::Completed, this, &ATraversalMechCharacter::Run);
 
 		//Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATraversalMechCharacter::Look);
@@ -111,6 +114,16 @@ void ATraversalMechCharacter::Move(const FInputActionValue& Value)
 		HandleGroundMovementInput(Value);
 	}
 	
+}
+
+void ATraversalMechCharacter::Run(const FInputActionValue& Value)
+{
+	if(!CustomMovementComponent) return;
+	
+	if(Value.GetMagnitude() > 0.f)
+		GetCustomMovementComponent()->MaxWalkSpeed = RunSpeed;
+	else
+		GetCustomMovementComponent()->MaxWalkSpeed = WalkSpeed;
 }
 
 void ATraversalMechCharacter::Look(const FInputActionValue& Value)

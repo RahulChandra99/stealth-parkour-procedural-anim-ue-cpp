@@ -18,6 +18,8 @@ public:
 	ATraversalMechCharacter(const FObjectInitializer& ObjectInitializer);
 
 private:
+
+	
 	
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -52,7 +54,7 @@ private:
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
 
-	/** climb Input Action */
+	/** Climb Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* ClimbAction;
 
@@ -62,7 +64,19 @@ private:
 	void HandleGroundMovementInput(const FInputActionValue& Value);
 	void HandleClimbMovementInput(const FInputActionValue& Value);
 	
+	/** Run Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* RunAction;
 
+	/** Called for movement input */
+	void Run(const FInputActionValue& Value);
+
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (AllowPrivateAccess = "true"))
+	float WalkSpeed = 500.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Input, meta = (AllowPrivateAccess = "true"))
+	float RunSpeed = 700.f;
 
 protected:
 
