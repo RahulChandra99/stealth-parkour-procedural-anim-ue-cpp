@@ -91,6 +91,20 @@ float UCustomMovementComponent::GetMaxAcceleration() const
 	}
 }
 
+FVector UCustomMovementComponent::ConstrainAnimRootMotionVelocity(const FVector& RootMotionVelocity,
+	const FVector& CurrentVelocity) const
+{
+	const bool bIsPlayingRMMontage = 
+	IsFalling() && OwningPlayerAnimInstance && OwningPlayerAnimInstance->IsAnyMontagePlaying();
+
+	if(bIsPlayingRMMontage)
+		return RootMotionVelocity;
+	else
+	{
+		return Super::ConstrainAnimRootMotionVelocity(RootMotionVelocity, CurrentVelocity);
+	}
+}
+
 #pragma region ClimbTraces
 
 	TArray<FHitResult> UCustomMovementComponent::DoCapsuleTraceMultiByObject(const FVector& Start, const FVector& End,
@@ -173,7 +187,7 @@ FHitResult UCustomMovementComponent::TraceFromEyeHeight(float TraceDistance, flo
 	const FVector Start = ComponentLocation + EyeHeightOffset;
 	const FVector End = Start + UpdatedComponent->GetForwardVector() * TraceDistance;
 
-	return DoLineTraceSingleByObject(Start,End);
+	return DoLineTraceSingleByObject(Start,End,true);
 }
 
 
@@ -245,6 +259,13 @@ void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
 
 	//snap movement to climbable surfaces
 	SnapMovementToClimbableSurfaces(deltaTime);
+	if(CheckHasReachedLedge())
+	{
+		Debug::Print("Reached Ledge");
+		StopClimbing();
+		PlayClimbMontage(ClimbToTopMontage);
+	}
+	
 }
 
 void UCustomMovementComponent::ProcessClimbableSurfaceInfo()
@@ -286,7 +307,7 @@ bool UCustomMovementComponent::CheckHasReachedFloor()
 	const FVector Start = UpdatedComponent->GetComponentLocation() + StartOffset;
 	const FVector End = Start + DownVector;
 
-	TArray<FHitResult> PossibleFloorHits = DoCapsuleTraceMultiByObject(Start, End, true);
+	TArray<FHitResult> PossibleFloorHits = DoCapsuleTraceMultiByObject(Start, End, false);
 
 	if(PossibleFloorHits.IsEmpty()) return false;
 
@@ -330,6 +351,27 @@ void UCustomMovementComponent::SnapMovementToClimbableSurfaces(float deltaTime)
 	UpdatedComponent->MoveComponent(SnapVector*deltaTime*MaxClimbSpeed,UpdatedComponent->GetComponentQuat(),true);
 }
 
+bool UCustomMovementComponent::CheckHasReachedLedge()
+{
+	FHitResult LedgeHitResult = TraceFromEyeHeight(100.f,50.f);
+
+	if(!LedgeHitResult.bBlockingHit)
+	{
+		const FVector WalkableSurfaceTraceStart = LedgeHitResult.TraceEnd;
+		const FVector DownVector = -UpdatedComponent->GetUpVector();
+		const FVector WalkableSurfaceTraceEnd = WalkableSurfaceTraceStart + DownVector * 100.f;
+
+		FHitResult WalkableSurfaceHitResult = 
+		DoLineTraceSingleByObject(WalkableSurfaceTraceStart,WalkableSurfaceTraceEnd, true);
+
+		if(WalkableSurfaceHitResult.bBlockingHit && GetUnrotatedClimbVelocity().Z > 10.f)
+			return true;
+		
+	}
+
+	return false;
+}
+
 void UCustomMovementComponent::PlayClimbMontage(UAnimMontage* MontageToPlay)
 {
 	if(!MontageToPlay) return;
@@ -344,6 +386,10 @@ void UCustomMovementComponent::OnClimbMontageEnded(UAnimMontage* Montage, bool b
 	if(Montage == IdleToClimbMontage)
 	{
 		StartClimbing();
+	}
+	else
+	{
+		SetMovementMode(MOVE_Walking);
 	}
 }
 
