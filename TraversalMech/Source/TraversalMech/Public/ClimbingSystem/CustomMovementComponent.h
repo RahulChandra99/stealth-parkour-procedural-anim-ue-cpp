@@ -6,6 +6,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "CustomMovementComponent.generated.h"
 
+class UAnimMontage;
+
 UENUM(BlueprintType)
 namespace ECustomMovementMode
 {
@@ -44,7 +46,9 @@ private:
 	bool CheckShouldStopClimbing();
 	FQuat GetClimbRotation(float DeltaTime);
 	void SnapMovementToClimbableSurfaces(float deltaTime);
-	
+	void PlayClimbMontage(UAnimMontage* MontageToPlay);
+	UFUNCTION()
+	void OnClimbMontageEnded(UAnimMontage *Montage, bool bInterrupted);
 	
 	
 #pragma endregion 
@@ -54,6 +58,9 @@ private:
 	TArray<FHitResult> ClimbableSurfacesTracedResults;
 	FVector CurrentClimbableSurfaceLocation;
 	FVector CurrentClimbableSurfaceNormal;
+
+	UPROPERTY()
+	class UAnimInstance* OwningPlayerAnimInstance;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
 	TArray<TEnumAsByte<EObjectTypeQuery> > ClimbableSurfaceTraceTypes;
@@ -72,11 +79,15 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
 	float MaxClimbAcceleration = 300.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	UAnimMontage* IdleToClimbMontage;
 	
 #pragma endregion
 
 #pragma region OverridenMethods
 	protected:
+		virtual void BeginPlay() override;
 		virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 		virtual void OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode) override;
 		virtual void PhysCustom(float deltaTime, int32 Iterations) override;
@@ -90,4 +101,5 @@ public:
 	void ToggleClimbing(bool bEnableClimb);
 	bool IsClimbing() const;
 	FORCEINLINE FVector GetClimbableSurfaceNormal() const {return CurrentClimbableSurfaceNormal;}
+	FVector GetUnrotatedClimbVelocity() const;
 };

@@ -4,12 +4,26 @@
 #include "ClimbingSystem/CustomMovementComponent.h"
 
 #include "Components/CapsuleComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "TraversalMech/TraversalMechCharacter.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "TraversalMech/DebugHelper.h"
 
+void UCustomMovementComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	OwningPlayerAnimInstance = CharacterOwner->GetMesh()->GetAnimInstance();
+
+	if(OwningPlayerAnimInstance)
+	{
+		OwningPlayerAnimInstance->OnMontageEnded.AddDynamic(this,&UCustomMovementComponent::OnClimbMontageEnded);
+		OwningPlayerAnimInstance->OnMontageBlendingOut.AddDynamic(this,&UCustomMovementComponent::OnClimbMontageEnded);
+	}
+}
+
 void UCustomMovementComponent::TickComponent(float DeltaTime, ELevelTick TickType,
-	FActorComponentTickFunction* ThisTickFunction)
+                                             FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
@@ -290,6 +304,22 @@ void UCustomMovementComponent::SnapMovementToClimbableSurfaces(float deltaTime)
 	UpdatedComponent->MoveComponent(SnapVector*deltaTime*MaxClimbSpeed,UpdatedComponent->GetComponentQuat(),true);
 }
 
+void UCustomMovementComponent::PlayClimbMontage(UAnimMontage* MontageToPlay)
+{
+	if(!MontageToPlay) return;
+	if(!OwningPlayerAnimInstance) return;
+	if(OwningPlayerAnimInstance->IsAnyMontagePlaying()) return;
+
+	OwningPlayerAnimInstance->Montage_Play(MontageToPlay);
+}
+
+void UCustomMovementComponent::OnClimbMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if(Montage == IdleToClimbMontage)
+	{
+		StartClimbing();
+	}
+}
 
 
 void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
@@ -298,12 +328,11 @@ void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 	{
 		if(CanStartClimbing())
 		{
-			Debug::Print(TEXT("Can Start Climbing"));
-			StartClimbing();
+			PlayClimbMontage(IdleToClimbMontage);
 		}
 		else
 		{
-			Debug::Print(TEXT("Cannot Start Climbing"));
+			//Debug::Print(TEXT("Cannot Start Climbing"));
 		}
 	}
 	else
@@ -315,6 +344,12 @@ void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 bool UCustomMovementComponent::IsClimbing() const
 {
 	return MovementMode == MOVE_Custom && CustomMovementMode == ECustomMovementMode::Move_Climb;
+}
+
+FVector UCustomMovementComponent::GetUnrotatedClimbVelocity() const
+{
+
+	return UKismetMathLibrary::Quat_UnrotateVector(UpdatedComponent->GetComponentQuat(),Velocity);
 }
 
 
