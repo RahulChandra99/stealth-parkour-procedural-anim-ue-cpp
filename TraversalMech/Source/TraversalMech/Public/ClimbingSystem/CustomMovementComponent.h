@@ -39,6 +39,7 @@ private:
 	bool TraceClimbableSurfaces();
 	FHitResult TraceFromEyeHeight(float TraceDistance, float TraceStartOffset = 0.f);
 	bool CanStartClimbing();
+	bool CanClimbDownLedge();
 	void StartClimbing();
 	void StopClimbing();
 	void PhysClimb(float deltaTime, int32 Iterations);
@@ -87,6 +88,15 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
 	UAnimMontage* ClimbToTopMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	float ClimbDownWalkableSurfaceTraceOffset = 15.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	float ClimbDownLedgeTraceOffset = 25.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Character Movement: Climbing", meta= (AllowPrivateAccess = true))
+	UAnimMontage* ClimbDownLedgeMontage;
 	
 #pragma endregion
 

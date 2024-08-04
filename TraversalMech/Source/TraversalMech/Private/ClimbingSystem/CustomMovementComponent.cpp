@@ -26,6 +26,8 @@ void UCustomMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
                                              FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	CanClimbDownLedge();
 }
 
 void UCustomMovementComponent::OnMovementModeChanged(EMovementMode PreviousMovementMode, uint8 PreviousCustomMode)
@@ -175,7 +177,7 @@ bool UCustomMovementComponent::TraceClimbableSurfaces()
 	const FVector StartOffset = UpdatedComponent->GetForwardVector() * 30.f;
 	const FVector Start = UpdatedComponent->GetComponentLocation() + StartOffset;
 	const FVector End = Start + UpdatedComponent->GetForwardVector();
-	ClimbableSurfacesTracedResults = DoCapsuleTraceMultiByObject(Start,End,true);
+	ClimbableSurfacesTracedResults = DoCapsuleTraceMultiByObject(Start,End,false);
 
 	return !ClimbableSurfacesTracedResults.IsEmpty();
 }
@@ -187,7 +189,7 @@ FHitResult UCustomMovementComponent::TraceFromEyeHeight(float TraceDistance, flo
 	const FVector Start = ComponentLocation + EyeHeightOffset;
 	const FVector End = Start + UpdatedComponent->GetForwardVector() * TraceDistance;
 
-	return DoLineTraceSingleByObject(Start,End,true);
+	return DoLineTraceSingleByObject(Start,End,false);
 }
 
 
@@ -198,6 +200,32 @@ bool UCustomMovementComponent::CanStartClimbing()
 	if(!TraceFromEyeHeight(100.f).bBlockingHit) return false;
 
 	return true;
+}
+
+bool UCustomMovementComponent::CanClimbDownLedge()
+{
+	if(IsFalling()) return false;
+
+	const FVector ComponentLocation = UpdatedComponent->GetComponentLocation();
+	const FVector ComponentForward = UpdatedComponent->GetForwardVector();
+	const FVector DownVector = -UpdatedComponent->GetUpVector();
+
+	const FVector WalkableSurfaceTraceStart =
+		ComponentLocation + ComponentForward * ClimbDownWalkableSurfaceTraceOffset;
+	const FVector  WalkableSurfaceTraceEnd =
+		WalkableSurfaceTraceStart + DownVector * 100.f;
+
+	FHitResult WalkableSurfaceHit = DoLineTraceSingleByObject(WalkableSurfaceTraceStart, WalkableSurfaceTraceEnd, false);
+
+	const FVector LedgeTraceStart = WalkableSurfaceHit.TraceStart + ComponentForward * ClimbDownLedgeTraceOffset;
+	const FVector LedgeTraceEnd = LedgeTraceStart + DownVector * 200.f;
+
+	FHitResult LedgeTraceHit = DoLineTraceSingleByObject(LedgeTraceStart, LedgeTraceEnd, false);
+
+	if(WalkableSurfaceHit.bBlockingHit && !LedgeTraceHit.bBlockingHit)
+		return true;
+
+	return false;
 }
 
 void UCustomMovementComponent::StartClimbing()
@@ -261,8 +289,6 @@ void UCustomMovementComponent::PhysClimb(float deltaTime, int32 Iterations)
 	SnapMovementToClimbableSurfaces(deltaTime);
 	if(CheckHasReachedLedge())
 	{
-		Debug::Print("Reached Ledge");
-		StopClimbing();
 		PlayClimbMontage(ClimbToTopMontage);
 	}
 	
@@ -362,7 +388,7 @@ bool UCustomMovementComponent::CheckHasReachedLedge()
 		const FVector WalkableSurfaceTraceEnd = WalkableSurfaceTraceStart + DownVector * 100.f;
 
 		FHitResult WalkableSurfaceHitResult = 
-		DoLineTraceSingleByObject(WalkableSurfaceTraceStart,WalkableSurfaceTraceEnd, true);
+		DoLineTraceSingleByObject(WalkableSurfaceTraceStart,WalkableSurfaceTraceEnd, false);
 
 		if(WalkableSurfaceHitResult.bBlockingHit && GetUnrotatedClimbVelocity().Z > 10.f)
 			return true;
@@ -383,11 +409,13 @@ void UCustomMovementComponent::PlayClimbMontage(UAnimMontage* MontageToPlay)
 
 void UCustomMovementComponent::OnClimbMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	if(Montage == IdleToClimbMontage)
+	if(Montage == IdleToClimbMontage || Montage==ClimbDownLedgeMontage)
 	{
 		StartClimbing();
+		StopMovementImmediately();
 	}
-	else
+
+	if(Montage == ClimbToTopMontage)
 	{
 		SetMovementMode(MOVE_Walking);
 	}
@@ -402,10 +430,11 @@ void UCustomMovementComponent::ToggleClimbing(bool bEnableClimb)
 		{
 			PlayClimbMontage(IdleToClimbMontage);
 		}
-		else
+		else if(CanClimbDownLedge())
 		{
-			//Debug::Print(TEXT("Cannot Start Climbing"));
+			PlayClimbMontage(ClimbDownLedgeMontage);
 		}
+		
 	}
 	else
 	{
