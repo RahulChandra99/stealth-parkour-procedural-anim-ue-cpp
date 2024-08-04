@@ -59,6 +59,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* ClimbAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	class UInputAction* TraversalAction;
+
 	/** Called for climbing input */
 	void OnClimbActionStarted(const FInputActionValue& Value);
 
